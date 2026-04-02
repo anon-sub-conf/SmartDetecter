@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "smartdetecter"
+version = "0.1.0"
+description = ""
+authors = ["anon-sub-conf <m87751190@gmail.com>"]
+readme = "readme.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.8,<3.9"
+solidity-parser = "0.1.1"
+antlr4-python3-runtime = "4.9.3"
+pandas = "1.4.3"
+lightgbm = "*"
+scikit-learn = "*"
+Bottleneck = "*"
+certifi = "*"
+joblib = "*"
+numexpr = "*"
+numpy = "*"
+packaging = "*"
+pyparsing = "*"
+python-dateutil = "*"
+pytz = "*"
+scipy = "*"
+six = "*"
+threadpoolctl = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

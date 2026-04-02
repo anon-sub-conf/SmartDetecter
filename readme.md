@@ -3,7 +3,7 @@ This repo is a python implementation of our Indetector for smart contract clone 
 
 ## Quick setup
 ```shell
-python3.10 setup_env.py
+python3 setup_env.py
 source .venv/bin/activate
 python Indetector.py --test
 ```
