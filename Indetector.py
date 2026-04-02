@@ -1,9 +1,11 @@
 import os
+import subprocess
 import sys
-import time
+from pathlib import Path
 
 def run(command):
-    path = './testContracts/'
+    base_dir = Path(__file__).resolve().parent
+    path = base_dir / 'testContracts'
     files = os.listdir(path)
     counts = 0
     names = []
@@ -12,20 +14,16 @@ def run(command):
             counts += 1
             names.append(file)
     if counts == 2:
-        script = '# !/bin/bash\n'
-        f1 = open('run.sh', 'w')
-        script = script + 'rm -rf testContracts/SRs.txt\n'
-        script = script + 'python3 -m solidity_parser parse ' + path + names[0] + '\n'
-        script = script + 'python3 -m solidity_parser parse ' + path + names[1] + '\n'
-        script = script + 'python get_feature.py\n'
-        script = script + 'python lightgbm_smart.py ' + command + '\n'
-        f1.write(script)
-        f1.close()
-        print("Star run.sh")
-        os.system("./run.sh")
+        srs_path = path / 'SRs.txt'
+        if srs_path.exists():
+            srs_path.unlink()
+        subprocess.run([sys.executable, '-m', 'solidity_parser', 'parse', str(path / names[0])], cwd=base_dir, check=True)
+        subprocess.run([sys.executable, '-m', 'solidity_parser', 'parse', str(path / names[1])], cwd=base_dir, check=True)
+        subprocess.run([sys.executable, 'get_feature.py'], cwd=base_dir, check=True)
+        subprocess.run([sys.executable, 'lightgbm_smart.py', command], cwd=base_dir, check=True)
     else:
         print('The number of contracts tested must be two')
-        exit(0)
+        sys.exit(1)
 
 if __name__ == "__main__":
     if not len(sys.argv) > 1 or sys.argv[1] not in ("--train", "--test"):
