@@ -101,13 +101,14 @@ class AstVisitor(SolidityVisitor):
         outputpath = 'testContracts/SRs.txt'
         for c in nodes:
             childResult = c.accept(self)
-            start = childResult['loc']['start']['line']
-            end = childResult['loc']['end']['line']
-            locs = str(start)+'_'+str(end)
-            ft = open(outputpath, 'a')
-            ft.write(locs+'\t')
-            ft.write(str(childResult) + '\n')
-            ft.close()
+            if isinstance(childResult, dict) and 'loc' in childResult:
+                start = childResult['loc']['start']['line']
+                end = childResult['loc']['end']['line']
+                locs = str(start)+'_'+str(end)
+                ft = open(outputpath, 'a')
+                ft.write(locs+'\t')
+                ft.write(str(childResult) + '\n')
+                ft.close()
             result = self.aggregateResult(result, childResult)
             allresults.append(result)
 
