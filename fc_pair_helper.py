@@ -26,9 +26,22 @@ def load_labels(csv_path: Path) -> pd.DataFrame:
     df.columns = ["function_id_1", "function_id_2", "label"]
     if not df.empty and not str(df.iloc[0]["label"]).strip().isdigit():
         df = df.iloc[1:].reset_index(drop=True)
+    df = df.dropna(how="all", subset=["function_id_1", "function_id_2", "label"]).reset_index(drop=True)
     df["function_id_1"] = df["function_id_1"].astype(str)
     df["function_id_2"] = df["function_id_2"].astype(str)
-    df["label"] = pd.to_numeric(df["label"], errors="raise").astype(int)
+    numeric_labels = pd.to_numeric(df["label"], errors="coerce")
+    invalid_mask = numeric_labels.isna()
+    if invalid_mask.any():
+        invalid_rows = (
+            df.loc[invalid_mask, ["function_id_1", "function_id_2", "label"]]
+            .head(5)
+            .to_dict(orient="records")
+        )
+        raise ValueError(
+            f"{csv_path} contains non-numeric or missing labels; "
+            f"examples: {invalid_rows}"
+        )
+    df["label"] = numeric_labels.astype(int)
     return df
 
 
