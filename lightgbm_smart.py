@@ -1,4 +1,6 @@
 import sys
+import zipfile
+from pathlib import Path
 
 from lightgbm import LGBMClassifier
 from sklearn.metrics import accuracy_score
@@ -14,6 +16,7 @@ from tkinter import _flatten
 from sklearn import preprocessing
 from sklearn.metrics import f1_score
 
+BASE_DIR = Path(__file__).resolve().parent
 
 def culatescore(predict, real):
     scores=[]
@@ -96,6 +99,7 @@ def detect_similarity(test_data,lss):
                 return '',False
             a = []
         index += 1
+
 def gen_report(test_data,results):
     source=''
     results=list(_flatten(results))
@@ -123,21 +127,33 @@ def gen_report(test_data,results):
             source=source+'<tr><td>'+struct1+s1.replace('<',' &lt;').replace('>',' &gt;')+'</td>\n'
             source = source + '<td>' +struct2+ s2.replace('<',' &lt;').replace('>',' &gt;') + '</td></tr>\n'
     source = source+'</table></div></body></html>'
-    f3=open('data/template.html','r')
+    f3=open('template.html','r')
     source=f3.read()+'<tr><td style="text-align:center;background-color: rgba(161, 161, 161, 0.6);">' +\
            test_data['fid1'][0].split('_')[0]+ \
              '</td><td style="text-align:center;background-color: rgba(161, 161, 161, 0.6);">' +\
            test_data['fid2'][0].split('_')[0]+ '</td></tr>'\
            +source
-    report = open('testContracts/report.html','w')
+    report = open('report.html','w')
     report.write(source)
-# load or create your dataset
 
+# load or create your dataset
 def train():
     print('Load data...')
     lbl = preprocessing.LabelEncoder()
-    train_data = pd.read_csv('data/train.csv', header=None)
+    sr_pair_csv = BASE_DIR / 'datasets' / 'SR-pair' / 'train.csv'
+    sr_pair_zip = BASE_DIR / 'datasets' / 'SR-pair.zip'
+    if sr_pair_csv.exists():
+        train_data = pd.read_csv(sr_pair_csv, header=None)
+    else:
+        with zipfile.ZipFile(sr_pair_zip) as zf:
+            with zf.open('SR-pair/train.csv') as handle:
+                train_data = pd.read_csv(handle, header=None)
     train_data.columns = ['fid1','fid2','type','name','names','value','unit','operater','memberName','other','label']
+    fc_pair_features = BASE_DIR / 'datasets' / 'FC-pair' / 'train_features.csv'
+    if fc_pair_features.exists():
+        fc_pair_data = pd.read_csv(fc_pair_features, header=None)
+        fc_pair_data.columns = ['fid1','fid2','type','name','names','value','unit','operater','memberName','other','label']
+        train_data = pd.concat([train_data, fc_pair_data], ignore_index=True)
     train_label=train_data['label']
     train_data.drop(['label','fid1','fid2'],axis=1,inplace=True)
     train_data['type'] = train_data['type'].astype('category')
@@ -191,12 +207,39 @@ def train():
             index+=1
         c = culatescore(results, y_valid)
         print(c)
-    joblib.dump(gbm, r'data/model_1.pkl')
+    joblib.dump(gbm, BASE_DIR / 'model.pkl')
     print('---cross validation score---')
     print(np.average(c))
     print(pd.DataFrame({'category':cat,'importance': gbm.feature_importance()}))
+
+def evaluate():
+    sr_pair_csv = BASE_DIR / 'datasets' / 'SR-pair' / 'test.csv'
+    sr_pair_zip = BASE_DIR / 'datasets' / 'SR-pair.zip'
+    if sr_pair_csv.exists():
+        test_data = pd.read_csv(sr_pair_csv, header=None)
+    else:
+        with zipfile.ZipFile(sr_pair_zip) as zf:
+            with zf.open('SR-pair/test.csv') as handle:
+                test_data = pd.read_csv(handle, header=None)
+    test_data.columns = ['fid1', 'fid2', 'type', 'name', 'names', 'value', 'unit', 'operater', 'memberName', 'other', 'label']
+    y_true = test_data['label'].astype(int)
+    test_data = test_data.drop(['label', 'fid1', 'fid2'], axis=1)
+    test_data['type'] = test_data['type'].astype('category')
+    test_data['name'] = test_data['name'].astype('category')
+    test_data['names'] = test_data['names'].astype('category')
+    test_data['value'] = test_data['value'].astype('category')
+    test_data['unit'] = test_data['unit'].astype('category')
+    test_data['operater'] = test_data['operater'].astype('category')
+    test_data['memberName'] = test_data['memberName'].astype('category')
+    test_data['other'] = test_data['other'].astype('category')
+    gbm=joblib.load(BASE_DIR / 'model.pkl')
+    test_pre = gbm.predict(test_data, num_iteration=gbm.best_iteration, predict_disable_shape_check='true')
+    threshold = 0.5
+    y_pred = [1 if w > threshold else 0 for w in test_pre]
+    print("Accuracy:"+str(accuracy_score(y_true, y_pred)))
+    print("F1-score:"+str(f1_score(y_true, y_pred)))
 def test():
-    test_data = pd.read_csv('testContracts/test_pairs.csv', header=None)
+    test_data = pd.read_csv(BASE_DIR / 'testContracts' / 'test_pairs.csv', header=None)
     test_data.columns = ['fid1', 'fid2', 'type', 'name', 'names', 'value', 'unit', 'operater', 'memberName', 'other']
     test_data['type'] = test_data['type'].astype('category')
     test_data['name'] = test_data['name'].astype('category')
@@ -207,8 +250,8 @@ def test():
     test_data['memberName'] = test_data['memberName'].astype('category')
     test_data['other'] = test_data['other'].astype('category')
     cat = ['type', 'name', 'names', 'value', 'unit', 'operater', 'memberName', 'other']
-    gbm=joblib.load('data/model.pkl')
-    test_pre = gbm.predict(test_data.iloc[:, 2:11], num_iteration=gbm.best_iteration, predict_disable_shape_check='true')
+    gbm=joblib.load(BASE_DIR / 'model.pkl')
+    test_pre = gbm.predict(test_data.iloc[:, 2:10], num_iteration=gbm.best_iteration, predict_disable_shape_check='true')
     threshold = 0.5 # set threshold
     smalltestresults = []
     bigtestresults = []
@@ -235,3 +278,5 @@ if __name__ == "__main__":
         train()
     elif sys.argv[1] == "--test":
         test()
+    elif sys.argv[1] == "--eval":
+        evaluate()
